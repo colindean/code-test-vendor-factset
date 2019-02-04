@@ -6,13 +6,15 @@ This is the result of an interview code test and should not be used for anything
 
 ## Goal
 
-Given five tables of data describing two different sets of data with disparate unique identifiers for each type, vendors and factsets, associate a vendor id with a factset id. The mapping will generally be 1:1 but it is possible for it to be 1:N.
+Given five tables of data describing two different sets of data with disparate unique identifiers for each type, vendors and factsets, associate a `vendor_id` with a `factset_entity_id`. The mapping will generally be 1:1 but it is possible for it to be 1:N.
 
 ## Research
 
 The actual data files are not included in this repository because I have not been given permission to share them, nor have I asked!
 
 ### Fields
+
+#### Vendors
 
 mdl_dim_vendor fields:
 
@@ -25,6 +27,10 @@ mdl_dim_geo fields:
 ```
 geo_id	zipcode	is_primary	latitude	longitude	elevation	state	state_full_name	area_code	city	city_display	county	county_fips	state_fips	timezone	daylight_saving	region	division	congress_district	congress_land_area	country	continent	country_iso2
 ```
+
+It appears that there's a 1:N relationship of Geo:Vendor.
+
+#### Factsets
 
 factset_entity_coverage fields:
 
@@ -56,4 +62,49 @@ The data was provided in CSV format, but the format was not clean:
 It's possible that there could be other errors in here but I'm leaving them for now!
 
 _(Yeah, I could have made those commands a little more succinct but they ran fast enough for this exercise.)_
+
+### Analysis
+
+```ruby
+require 'pmap'
+require 'csv'
+
+def clean_row(row)
+  output = {}
+  row.to_hash.each_pair do |k,v| 
+    # clean whitepace
+    value = v.strip if !v.nil?
+    # TODO: consider other cleaning, e.g. parse to Number, etc.
+    output[k.to_sym] = value
+  end
+  output
+end
+
+def index_by_hash_key(key, array)
+  array.pmap { |hash| [ hash[key], hash ] }.to_h
+end
+
+geo_csv = CSV.open(File.new("data/mdl__dim_geo.csv"), {headers: true})
+vendor_csv = CSV.open(File.new("data/mdl__dim_vendor.csv"), {headers: true})
+
+geos_by_geo_id = index_by_hash_key(:geo_id, geo_csv.pmap { |row| clean_row(row) } )
+vendors_by_vendor_id = index_by_hash_key(:vendor_id, vendor_csv.pmap { |row| clean_row(row) } )
+
+Vendor = Struct.new(:id, :geo, :vendor) do 
+  include Comparable
+  def <=> other
+    id <=> other.id
+  end
+end
+
+# WIP!
+vendors = vendors_by_vendor_id.pmap do |id|
+  vendor = Vendor.new
+  vendor.id = id
+  vendor.vendor = vendors_by_vendor_id[id]
+  vendor.geo = geos_by_geo_id[vendor.vendor[:geo_id]]
+end
+
+
+```
 
