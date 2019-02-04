@@ -53,5 +53,7 @@ The data was provided in CSV format, but the format was not clean:
 * `factset__ent_entity_structure` seemed to be structured data already with no chance to break newlines, etc. so I did not evaluate its cleanliness beyond a quick visual pass.
 * `factset__ent_entity_coverage` seemed to be clean with a quick validation of its first column, comprised of six alphanumeric characters followed by `-E`: `cat -n data/factset__ent_entity_coverage.csv | cut -d , -f 1 | awk '{print $1 ":" $2}' | grep -v '\d.*:.*-E'`.
 
+It's possible that there could be other errors in here but I'm leaving them for now!
+
 _(Yeah, I could have made those commands a little more succinct but they ran fast enough for this exercise.)_
 
