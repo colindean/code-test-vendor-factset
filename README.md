@@ -95,7 +95,6 @@ Vendor = Struct.new(:id, :geo, :vendor) do
   end
 end
 
-# WIP!
 vendors = vendors_by_vendor_id.pmap do |id_vendor|
   begin
     vendor = Vendor.new
