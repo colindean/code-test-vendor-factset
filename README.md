@@ -82,10 +82,6 @@ def clean_row(row)
   output
 end
 
-def index_by_hash_key(key, array)
-  array.pmap { |hash| [ hash[key], hash ] }.to_h
-end
-
 geo_data = CSV.open(File.new("data/mdl__dim_geo.csv"), {headers: true}).pmap { |row| clean_row(row) } 
 vendor_data = CSV.open(File.new("data/mdl__dim_vendor.csv"), {headers: true}).pmap { |row| clean_row(row) } 
 
