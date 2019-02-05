@@ -65,6 +65,8 @@ _(Yeah, I could have made those commands a little more succinct but they ran fas
 
 ### Analysis
 
+Model the data
+
 ```ruby
 require 'pmap'
 require 'csv'
@@ -84,11 +86,11 @@ def index_by_hash_key(key, array)
   array.pmap { |hash| [ hash[key], hash ] }.to_h
 end
 
-geo_csv = CSV.open(File.new("data/mdl__dim_geo.csv"), {headers: true})
-vendor_csv = CSV.open(File.new("data/mdl__dim_vendor.csv"), {headers: true})
+geo_data = CSV.open(File.new("data/mdl__dim_geo.csv"), {headers: true}).pmap { |row| clean_row(row) } 
+vendor_data = CSV.open(File.new("data/mdl__dim_vendor.csv"), {headers: true}).pmap { |row| clean_row(row) } 
 
-geos_by_geo_id = index_by_hash_key(:geo_id, geo_csv.pmap { |row| clean_row(row) } )
-vendors_by_vendor_id = index_by_hash_key(:vendor_id, vendor_csv.pmap { |row| clean_row(row) } )
+geos_by_geo_id = geo_data.group_by { |geo| geo[:geo_id] }
+vendors_by_vendor_id = vendor_data.group_by { |vendor| vendor[:vendor_id] }
 
 Vendor = Struct.new(:id, :geo, :vendor) do 
   include Comparable
@@ -98,13 +100,43 @@ Vendor = Struct.new(:id, :geo, :vendor) do
 end
 
 # WIP!
-vendors = vendors_by_vendor_id.pmap do |id|
-  vendor = Vendor.new
-  vendor.id = id
-  vendor.vendor = vendors_by_vendor_id[id]
-  vendor.geo = geos_by_geo_id[vendor.vendor[:geo_id]]
+vendors = vendors_by_vendor_id.pmap do |id_vendor|
+  begin
+    vendor = Vendor.new
+    vendor.id = id_vendor[0]
+    vendor.vendor = id_vendor[1].first
+    vendor.geo = geos_by_geo_id[vendor.vendor[:geo_id]].first if vendor.vendor[:geo_id] && geos_by_geo_id[vendor.vendor[:geo_id]]
+    vendor
+  rescue NoMethodError
+    puts "Vendor was #{id_vendor}"
+    sleep 1
+  end
 end
 
+factset_address_data = CSV.open(File.new("data/factset__ent_entity_address.csv"), {headers: true}).pmap { |row| clean_row(row) }
+factset_structure_data = CSV.open(File.new("data/factset__ent_entity_structure.csv"), {headers: true}).pmap { |row| clean_row(row) }
+factset_coverage_data = CSV.open(File.new("data/factset__ent_entity_coverage.csv"), {headers: true}).pmap { |row| clean_row(row) }
+
+factset_addresses_by_entity_id = factset_address_data.group_by { |thing| thing[:factset_entity_id] }
+factset_structure_by_entity_id = factset_structure_data.group_by { |thing| thing[:factset_entity_id] }
+factset_coverage_by_entity_id  = factset_coverage_data.group_by { |thing| thing[:factset_entity_id] }
+
+Entity = Struct.new(:id, :address, :structure, :coverage) do
+  include Comparable
+  def <=> other
+    id <=> other.id
+  end
+end
+
+entities = factset_coverage_by_entity_id.pmap do |id_entity|
+  entity = Entity.new
+  entity.id = id_entity[0]
+  entity.coverage = id_entity[1].first
+  entity.structure = factset_structure_by_entity_id[entity.id].first if factset_structure_by_entity_id[entity.id]
+  entity.address = factset_addresses_by_entity_id[entity.id] # seems like there could be more than one
+  entity
+end
 
 ```
 
+Now, try to link a vendor to an entity.
