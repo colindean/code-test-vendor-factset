@@ -134,4 +134,56 @@ end
 
 ```
 
-Now, try to link a vendor to an entity.
+# Now, try to link a vendor to an entity.
+
+```ruby
+require 'jaro_winkler'
+
+NAME_CHECK_JARO_WINKLER_DISTANCE_THRESHOLD = 0.98
+DEBUG = false
+check_names = Proc.new do |entity, vendor|
+  output = []
+  entity_names = [entity.coverage[:entity_name], entity.coverage[:entity_proper_name]]
+  vendor_name = vendor.vendor[:name]
+  capitalized = vendor_name.upcase
+  no_punctuation = capitalized.gsub(/[^[:word:]\s]/, '')
+  variants = [vendor_name, capitalized, no_punctuation]
+  STDERR.puts "Is #{entity_names} in #{variants}?" if DEBUG
+  entity_names.find do |name|
+    if variants.include? name
+      hash = { factset_entity_id: entity.id, vendor_id: vendor.id, confidence: 1.0, reason: "name ~exact match" }
+      STDERR.puts "EXACT MATCH! #{hash}"
+      output << hash
+    else
+      jw_dist = JaroWinkler.distance entity.coverage[:entity_name], no_punctuation
+      if jw_dist > NAME_CHECK_JARO_WINKLER_DISTANCE_THRESHOLD
+        hash = { factset_entity_id: entity.id, vendor_id: vendor.id, confidence: jw_dist, reason: "name jaro winkler exceeding #{NAME_CHECK_JARO_WINKLER_DISTANCE_THRESHOLD}" }
+        STDERR.puts "JW hit: #{hash}"
+        output << hash
+      end
+    end
+  end
+  output
+end
+
+
+checks = [check_names]
+matches = []
+entities.each do |entity|
+  vendors.select do |vendor|
+    checks.each do |check|
+      result = check.call(entity, vendor)
+      STDERR.puts "Found #{result.size} results…" if DEBUG
+      matches += result
+    end
+  end
+end
+
+CSV.open("matches.csv","w", {headers: matches.first.keys, write_headers: true}) do |csv|
+  matches.each do |match|
+    csv << match.values
+  end
+end
+
+
+```
