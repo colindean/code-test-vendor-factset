@@ -7,6 +7,10 @@ import com.github.vickumar1981.stringdistance.StringConverter._
 import cx.cad.codetests.vendor_factset.CsvTools.Row
 import cx.cad.codetests.vendor_factset.Data.fileFor
 
+import scala.collection.parallel.ParSeq
+import scala.collection.parallel.immutable.ParMap
+import scala.concurrent.Future
+
 /**
   * This file is a part of vendor-factset-scala and is licensed as detailed in LICENSE.md.
   */
@@ -115,11 +119,12 @@ object VendorData {
   lazy val vendorsByVendorId = vendor_data.groupBy(_(CsvConstants.Vendor.Id))
 
   lazy val vendors = vendorsByVendorId.par.map { case (vendorId: String, data: Seq[Row]) => {
-    val geos: List[Row] = geosByVendorId.getOrElse(vendorId, List.empty)
+    val geos: Seq[Row] = geosByVendorId.getOrElse(vendorId, List.empty)
+    print("V")
     Vendor(
       id = VendorId(vendorId),
       vendorData = data.head,
-      geoData = geos
+      geoData = geos.toList
 
     )
   }}
@@ -132,26 +137,36 @@ case class Vendor(id: VendorId,
 case class VendorId(id: String) extends AnyVal
 
 object FactsetData {
-  lazy val factset_address_data = CsvTools.read(fileFor("factset__ent_entity_address.csv"))
-  lazy val factset_structure_data = CsvTools.read(fileFor("factset__ent_entity_structure.csv"))
-  lazy val factset_coverage_data = CsvTools.read(fileFor("factset__ent_entity_coverage.csv"))
+  import scala.concurrent.ExecutionContext.Implicits.global
 
-  lazy val factsetAddressesByEntityId = factset_address_data.par.groupBy(_(CsvConstants.Factset.Entity.Id))
-  lazy val factsetCoverageByEntityId = factset_coverage_data.par.groupBy(_(CsvConstants.Factset.Entity.Id))
-  lazy val factsetStructureByEntityId = factset_structure_data.par.groupBy(_(CsvConstants.Factset.Entity.Id))
+  lazy val factset_address_data = Future { CsvTools.read(fileFor("factset__ent_entity_address.csv")) }
+  lazy val factset_structure_data = Future {CsvTools.read(fileFor("factset__ent_entity_structure.csv")) }
+  lazy val factset_coverage_data = Future { CsvTools.read(fileFor("factset__ent_entity_coverage.csv")) }
+
+  lazy val futurefactsetAddressesByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_address_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
+  lazy val futurefactsetCoverageByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_coverage_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
+  lazy val futurefactsetStructureByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_structure_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
 
   lazy val entities = for {
+    factsetCoverageByEntityId <- futurefactsetCoverageByEntityId
+    factsetStructureByEntityId <- futurefactsetStructureByEntityId
+    factsetAddressesByEntityId <- futurefactsetAddressesByEntityId
+  } yield for {
     id <- factsetCoverageByEntityId.keys.par
     coverage <- factsetCoverageByEntityId.get(id)
     structure <- factsetStructureByEntityId.get(id)
     addresses <- factsetAddressesByEntityId.get(id)
   } yield
+    {
+    print("E")
     Entity(
       EntityId(id),
       coverageData = coverage.toList.head,
       structureData = structure.toList,
       addressData = addresses.toList
     )
+  }
+
 }
 
 case class Entity(id: EntityId,
@@ -177,9 +192,10 @@ object CsvConstants {
 object CsvTools {
   type Row = Map[String, String]
 
-  def read(path: File): List[Map[String, String]] = {
+  def read(path: File): Seq[Map[String, String]] = {
+    println(s"Opening $path")
     val reader = CSVReader.open(path)
-    reader.allWithHeaders()
+    reader.toStreamWithHeaders
   }
   def cleanRow(row: Row): Row = {
     row.map { case (field: String, value: String) =>
