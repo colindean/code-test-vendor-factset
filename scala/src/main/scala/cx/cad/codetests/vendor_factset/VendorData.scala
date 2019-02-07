@@ -48,7 +48,7 @@ object VendorData {
 
     } yield Vendor(
       id = vendorId,
-      vendorData = vendorData.head,
+      vendorData = vendor,
       geoData = List.empty, //geoData.toList
     )
     println(s"Got ${output.size} vendors…")

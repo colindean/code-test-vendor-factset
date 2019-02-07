@@ -46,11 +46,11 @@ object FactsetData {
 
   lazy val entities: GenSeq[Entity] = {
     val resultSet = SqlTools.query("SELECT * FROM entity_coverage")
-    val data: ParSeq[Row] = SqlTools.resultSetToMap(resultSet).par
+    val data: Par Seq[Row] = SqlTools.resultSetToMap(resultSet).par
 
     val output = for {
-      entity <- data
-      id <- entity.get(FieldNames.Factset.Entity.Id)
+      coverage <- data
+      id <- coverage.get(FieldNames.Factset.Entity.Id)
       entityId = EntityId(id)
       /*addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
       addresses = SqlTools.resultSetToMap(addressResultSet)
@@ -59,7 +59,7 @@ object FactsetData {
 
     } yield Entity(
       id = entityId,
-      coverageData = data.head,
+      coverageData = coverage,
       addressData = List.empty, //addresses.toList,
       structureData = List.empty, //structure.toList
     )
