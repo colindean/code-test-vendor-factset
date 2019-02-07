@@ -43,13 +43,13 @@ object VendorData {
       id <- vendor.get(FieldNames.Vendor.Id)
       vendorId = VendorId(id)
       geoId <- vendor.get(FieldNames.Vendor.GeoId)
-      geoResultSet = SqlTools.query(s"""SELECT * from vendor_geo WHERE geo_id = ${geoId}"""") // skipping prepared statements for now
-      geoData = SqlTools.resultSetToMap(geoResultSet)
+      /*geoResultSet = SqlTools.query(s"""SELECT * from vendor_geo WHERE geo_id = ${geoId}"""") // skipping prepared statements for now
+      geoData = SqlTools.resultSetToMap(geoResultSet)*/
 
     } yield Vendor(
       id = vendorId,
       vendorData = vendorData.head,
-      geoData = geoData.toList
+      geoData = List.empty, //geoData.toList
     )
     println(s"Got ${output.size} vendors…")
     output

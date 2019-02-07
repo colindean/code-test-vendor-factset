@@ -52,16 +52,16 @@ object FactsetData {
       entity <- data
       id <- entity.get(FieldNames.Factset.Entity.Id)
       entityId = EntityId(id)
-      addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
+      /*addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
       addresses = SqlTools.resultSetToMap(addressResultSet)
       structureResultSet = SqlTools.query(s"""SELECT * from entity_structure WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
-      structure = SqlTools.resultSetToMap(structureResultSet)
+      structure = SqlTools.resultSetToMap(structureResultSet)*/
 
     } yield Entity(
       id = entityId,
       coverageData = data.head,
-      addressData = addresses.toList,
-      structureData = structure.toList
+      addressData = List.empty, //addresses.toList,
+      structureData = List.empty, //structure.toList
     )
     println(s"Got ${output.size} entities…")
     output
