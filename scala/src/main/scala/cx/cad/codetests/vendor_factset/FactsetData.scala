@@ -46,7 +46,7 @@ object FactsetData {
 
   lazy val entities: GenSeq[Entity] = {
     val resultSet = SqlTools.query("SELECT * FROM entity_coverage")
-    val data: Par Seq[Row] = SqlTools.resultSetToMap(resultSet).par
+    val data: ParSeq[Row] = SqlTools.resultSetToMap(resultSet).par
 
     val output = for {
       coverage <- data
