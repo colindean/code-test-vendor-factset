@@ -58,7 +58,7 @@ object NameChecker extends Check {
   }
 
   def removePunctuation(string: String): String = {
-    string.replaceAll("/[^[:word:]\\s]/", "")
+    string.replaceAll("\\p{Punct}", "")
   }
 }
 
