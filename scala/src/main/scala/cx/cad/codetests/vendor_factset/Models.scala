@@ -22,6 +22,7 @@ case class VendorId(id: String) extends AnyVal
 object FieldNames {
   object Vendor {
     val Id = "vendor_id"
+    val GeoId = "geo_id"
   }
   object Factset {
     object Entity {

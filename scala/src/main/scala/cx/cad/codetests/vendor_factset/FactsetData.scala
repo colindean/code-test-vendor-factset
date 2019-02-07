@@ -1,7 +1,9 @@
 package cx.cad.codetests.vendor_factset
 
+import cx.cad.codetests.vendor_factset.CsvTools.Row
 import cx.cad.codetests.vendor_factset.Data.fileFor
 
+import scala.collection.GenSeq
 import scala.collection.parallel.{ParIterable, ParSeq}
 import scala.collection.parallel.immutable.ParMap
 import scala.concurrent.{Await, Future}
@@ -21,7 +23,7 @@ object FactsetData {
   lazy val futurefactsetCoverageByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_coverage_data.map(_.par.groupBy(_(FieldNames.Factset.Entity.Id)))
   lazy val futurefactsetStructureByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_structure_data.map(_.par.groupBy(_(FieldNames.Factset.Entity.Id)))
 
-  lazy val entities: ParIterable[Entity] = Await.result({for {
+  lazy val entities2: ParIterable[Entity] = Await.result({for {
     factsetCoverageByEntityId <- futurefactsetCoverageByEntityId
     factsetStructureByEntityId <- futurefactsetStructureByEntityId
     factsetAddressesByEntityId <- futurefactsetAddressesByEntityId
@@ -41,4 +43,27 @@ object FactsetData {
       )
     }}, Duration.Inf) // this is awful
 
+
+  lazy val entities: GenSeq[Entity] = {
+    val resultSet = SqlTools.query("SELECT * FROM entity_coverage")
+    val data: ParSeq[Row] = SqlTools.resultSetToMap(resultSet).par
+
+    val output = for {
+      entity <- data
+      id <- entity.get(FieldNames.Factset.Entity.Id)
+      entityId = EntityId(id)
+      addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
+      addresses = SqlTools.resultSetToMap(addressResultSet)
+      structureResultSet = SqlTools.query(s"""SELECT * from entity_structure WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
+      structure = SqlTools.resultSetToMap(structureResultSet)
+
+    } yield Entity(
+      id = entityId,
+      coverageData = data.head,
+      addressData = addresses.toList,
+      structureData = structure.toList
+    )
+    println(s"Got ${output.size} entities…")
+    output
+  }
 }
