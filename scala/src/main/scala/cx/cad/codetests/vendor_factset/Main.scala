@@ -7,9 +7,10 @@ import com.github.vickumar1981.stringdistance.StringConverter._
 import cx.cad.codetests.vendor_factset.CsvTools.Row
 import cx.cad.codetests.vendor_factset.Data.fileFor
 
-import scala.collection.parallel.ParSeq
+import scala.collection.parallel.{ParIterable, ParSeq, immutable}
 import scala.collection.parallel.immutable.ParMap
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 /**
   * This file is a part of vendor-factset-scala and is licensed as detailed in LICENSE.md.
@@ -112,14 +113,16 @@ object Data {
 }
 
 object VendorData {
-  lazy val geo_data = CsvTools.read(fileFor("mdl__dim_geo.csv"))
-  lazy val vendor_data = CsvTools.read(fileFor("mdl__dim_vendor.csv"))
+  import scala.concurrent.ExecutionContext.Implicits.global
 
-  lazy val geosByVendorId = geo_data.groupBy(_(CsvConstants.Vendor.Id))
-  lazy val vendorsByVendorId = vendor_data.groupBy(_(CsvConstants.Vendor.Id))
+  lazy val geo_data = Future { CsvTools.read(fileFor("mdl__dim_geo.csv")) }
+  lazy val vendor_data = Future { CsvTools.read(fileFor("mdl__dim_vendor.csv")) }
 
-  lazy val vendors = vendorsByVendorId.par.map { case (vendorId: String, data: Seq[Row]) => {
-    val geos: Seq[Row] = geosByVendorId.getOrElse(vendorId, List.empty)
+  lazy val geosByVendorId = geo_data.map(_.groupBy(_(CsvConstants.Vendor.Id)))
+  lazy val vendorsByVendorId = vendor_data.map(_.groupBy(_(CsvConstants.Vendor.Id)))
+
+  lazy val vendors: immutable.ParIterable[Vendor] = Await.result(vendorsByVendorId, Duration.Inf).par.map { case (vendorId: String, data: Seq[Row]) => {
+    val geos: Seq[Row] = Await.result(geosByVendorId, Duration.Inf).getOrElse(vendorId, List.empty)
     print("V")
     Vendor(
       id = VendorId(vendorId),
@@ -140,14 +143,14 @@ object FactsetData {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   lazy val factset_address_data = Future { CsvTools.read(fileFor("factset__ent_entity_address.csv")) }
-  lazy val factset_structure_data = Future {CsvTools.read(fileFor("factset__ent_entity_structure.csv")) }
+  lazy val factset_structure_data = Future { CsvTools.read(fileFor("factset__ent_entity_structure.csv")) }
   lazy val factset_coverage_data = Future { CsvTools.read(fileFor("factset__ent_entity_coverage.csv")) }
 
   lazy val futurefactsetAddressesByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_address_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
   lazy val futurefactsetCoverageByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_coverage_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
   lazy val futurefactsetStructureByEntityId: Future[ParMap[String, ParSeq[Map[String, String]]]] = factset_structure_data.map(_.par.groupBy(_(CsvConstants.Factset.Entity.Id)))
 
-  lazy val entities = for {
+  lazy val entities: ParIterable[Entity] = Await.result({for {
     factsetCoverageByEntityId <- futurefactsetCoverageByEntityId
     factsetStructureByEntityId <- futurefactsetStructureByEntityId
     factsetAddressesByEntityId <- futurefactsetAddressesByEntityId
@@ -165,7 +168,7 @@ object FactsetData {
       structureData = structure.toList,
       addressData = addresses.toList
     )
-  }
+  }}, Duration.Inf) // this is awful
 
 }
 
