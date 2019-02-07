@@ -13,6 +13,31 @@ import scala.concurrent.duration.Duration
   * This file is a part of vendor-factset-scala and is licensed as detailed in LICENSE.md.
   */
 object FactsetData {
+  lazy val entities: GenSeq[Entity] = {
+    val resultSet = SqlTools.query("SELECT * FROM entity_coverage")
+    val data: ParSeq[Row] = SqlTools.resultSetToMap(resultSet).par
+
+    val output = for {
+      coverage <- data
+      id <- coverage.get(FieldNames.Factset.Entity.Id)
+      entityId = EntityId(id)
+      /*addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
+      addresses = SqlTools.resultSetToMap(addressResultSet)
+      structureResultSet = SqlTools.query(s"""SELECT * from entity_structure WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
+      structure = SqlTools.resultSetToMap(structureResultSet)*/
+
+    } yield Entity(
+      id = entityId,
+      coverageData = coverage,
+      addressData = List.empty, //addresses.toList,
+      structureData = List.empty, //structure.toList
+    )
+    println(s"Got ${output.size} entities…")
+    output
+  }
+}
+
+object FactsetDataCsv {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   lazy val factset_address_data = Future { CsvTools.read(fileFor("factset__ent_entity_address.csv")) }
@@ -42,28 +67,4 @@ object FactsetData {
         addressData = addresses.toList
       )
     }}, Duration.Inf) // this is awful
-
-
-  lazy val entities: GenSeq[Entity] = {
-    val resultSet = SqlTools.query("SELECT * FROM entity_coverage")
-    val data: ParSeq[Row] = SqlTools.resultSetToMap(resultSet).par
-
-    val output = for {
-      coverage <- data
-      id <- coverage.get(FieldNames.Factset.Entity.Id)
-      entityId = EntityId(id)
-      /*addressResultSet = SqlTools.query(s"""SELECT * from entity_address WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
-      addresses = SqlTools.resultSetToMap(addressResultSet)
-      structureResultSet = SqlTools.query(s"""SELECT * from entity_structure WHERE factset_entity_id = "${id}"""") // skipping prepared statements for now
-      structure = SqlTools.resultSetToMap(structureResultSet)*/
-
-    } yield Entity(
-      id = entityId,
-      coverageData = coverage,
-      addressData = List.empty, //addresses.toList,
-      structureData = List.empty, //structure.toList
-    )
-    println(s"Got ${output.size} entities…")
-    output
-  }
 }
