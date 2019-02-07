@@ -13,21 +13,18 @@ object Main extends App {
 
   println(s"Executing ${activeChecks.size} checks…")
 
-  val checkResults = for {
-    entity <- FactsetData.entities
-    vendor <- VendorData.vendors
-    check  <- activeChecks
-  } yield check.check(entity, vendor)
-
-
   val f = new File("out.csv")
   val writer = CSVWriter.open(f)
   //headers
   writer.writeRow(CheckMatch.headers)
-  checkResults.toStream.foreach {
-    case Some(checkMatch) => writer.writeRow(checkMatch.asCsvList)
-    case None =>
-  }
+
+  for {
+    entity <- FactsetData.entities
+    vendor <- VendorData.vendors
+    check  <- activeChecks
+    success <- check.check(entity, vendor)
+  } yield writer.writeRow(success.asCsvList)
+
   writer.close()
 }
 

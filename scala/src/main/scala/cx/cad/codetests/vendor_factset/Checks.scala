@@ -12,6 +12,7 @@ object NameChecker extends Check {
   val NameCheckJaroWinklerDistanceThreshold = 0.98
 
   override def check(entity: Entity, vendor: Vendor): Option[CheckMatch] = {
+    //println(s"Checking entity ${entity.id} and vendor ${vendor.id}…")
     val entityNames = List(
       entity.coverageData(FieldNames.Factset.Entity.Name),
       entity.coverageData(FieldNames.Factset.Entity.ProperName))
@@ -23,6 +24,10 @@ object NameChecker extends Check {
       vendorNameNoPunct,
       vendorName.toUpperCase,
     )
+
+    /*println(s"Comparing entitynames ${entityNames} with vendors ${variants}")
+    Thread.sleep(2000)*/
+
     // exact matches
     val matches = entityNames.intersect(variants)
 
