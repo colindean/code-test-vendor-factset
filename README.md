@@ -65,4 +65,8 @@ _(Yeah, I could have made those commands a little more succinct but they ran fas
 
 ### Analysis
 
-See [analyze.rb](analyze.rb).
+See [analyze.rb](analyze.rb) for the first pass. The problem with this was a perennial Ruby problem: Ruby's not great at concurrency. Using `pmap` kinda helps but not enough: a run takes more than 24 hours.
+
+See [scala](scala) for a rewrite in Scala. I observed some trouble with the speed of CSV parser I was using so I decided to import the data into an SQLite database and use that instead. I realized then that the sheer volume of the data was likely the culprit and omitted loading data that I wasn't actively using in a check. I'd like to have made that secondary data (geo data in vendor and structure and address data in entities) lazy-loading but I didn't feel it was a priority for this.
+
+The output will be in `matches.csv` for Ruby and `out.csv` for Scala. Only names and their variants are checked. More than that would have taken more time when I already expended a lot of time cleaning data, dealing with modeling issues in Ruby, and some other problems from not having employed MDM strategies in the past.
